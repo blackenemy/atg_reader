@@ -355,11 +355,26 @@ function jumpToChapter() {
 
 // ── UI Controls ──
 function toggleSidebar() {
-  document.getElementById("sidebar").classList.toggle("closed");
+  const sidebar = document.getElementById("sidebar");
+  const backdrop = document.getElementById("sidebarBackdrop");
+  const isOpening = sidebar.classList.contains("closed");
+  
+  sidebar.classList.toggle("closed");
+  if (backdrop) {
+    backdrop.classList.toggle("active", isOpening);
+  }
+  
+  // Prevent scroll on mobile when sidebar is open
+  if (window.innerWidth <= 768) {
+    document.body.style.overflow = isOpening ? "hidden" : "";
+  }
 }
 
 function closeSidebar() {
   document.getElementById("sidebar").classList.add("closed");
+  const backdrop = document.getElementById("sidebarBackdrop");
+  if (backdrop) backdrop.classList.remove("active");
+  document.body.style.overflow = "";
 }
 
 function toggleTheme() {
@@ -827,5 +842,6 @@ function escHtml(str) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }

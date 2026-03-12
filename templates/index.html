@@ -1,170 +1,177 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Against the Gods | อสูรพลิกฟ้า</title>
-<link rel="stylesheet" href="/static/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Against the Gods | อสูรพลิกฟ้า</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
+
 <body class="dark">
-<div id="app">
+  <div id="app">
 
-  <!-- Sidebar -->
-  <aside id="sidebar" class="open">
-    <div class="sidebar-header">
-      <h1 class="book-title">อสูรพลิกฟ้า</h1>
-      <p class="book-sub">Against the Gods</p>
-      <p class="book-meta">แปลโดย Aradeer</p>
-    </div>
-
-    <div class="search-box">
-      <input type="number" id="jumpInput" placeholder="ไปบทที่..." min="0" max="1900">
-      <button onclick="jumpToChapter()">ไป</button>
-    </div>
-
-    <div class="toc-info">
-      <span id="indexStatus">กำลังโหลด...</span>
-    </div>
-
-    <div id="tocList" class="toc-list">
-      <!-- Chapter list populated by JS -->
-    </div>
-  </aside>
-
-  <!-- Toggle sidebar button -->
-  <button id="sidebarToggle" onclick="toggleSidebar()" title="เปิด/ปิด สารบัญ">☰</button>
-
-  <!-- Main reader -->
-  <main id="reader">
-    <!-- Top bar -->
-    <div class="topbar">
-      <div class="topbar-left">
-        <button class="btn-icon" onclick="toggleSidebar()" title="สารบัญ">☰</button>
-        <span id="currentChapterTitle">Against the Gods อสูรพลิกฟ้า</span>
+    <!-- Sidebar -->
+    <aside id="sidebar" class="open">
+      <div class="sidebar-header">
+        <h1 class="book-title">อสูรพลิกฟ้า</h1>
+        <p class="book-sub">Against the Gods</p>
+        <p class="book-meta">แปลโดย Aradeer</p>
       </div>
-      <div class="topbar-right">
-        <button class="btn-icon" onclick="changeFontSize(-1)" title="ลดตัวอักษร">A-</button>
-        <button class="btn-icon" onclick="changeFontSize(1)" title="เพิ่มตัวอักษร">A+</button>
-        <button class="btn-icon" onclick="toggleTheme()" id="themeBtn" title="เปลี่ยนธีม">☀️</button>
-        <button class="btn-icon" id="ttsMasterBtn" onclick="ttsTogglePlayer()" title="อ่านออกเสียง">🔊</button>
-      </div>
-    </div>
 
-    <!-- TTS Player Bar -->
-    <div id="ttsBar" class="tts-bar" style="display:none">
-      <div class="tts-controls">
-        <button class="tts-btn" id="ttsPlayBtn"  onclick="ttsPlay()"     title="เล่น (Space)">▶</button>
-        <button class="tts-btn" id="ttsPauseBtn" onclick="ttsPause()"    title="หยุดชั่วคราว (Space)" style="display:none">⏸</button>
-        <button class="tts-btn tts-btn-stop"     onclick="ttsStop()"     title="หยุด (Esc)">⏹</button>
-        <button class="tts-btn" id="ttsSkipPrevBtn" onclick="ttsSkipPrev()" title="ย่อหน้าก่อน (Shift+←)">⏮</button>
-        <button class="tts-btn" id="ttsSkipNextBtn" onclick="ttsSkipNext()" title="ย่อหน้าถัดไป (Shift+→)">⏭</button>
-        <div class="tts-progress-wrap" id="ttsProgressWrap" onclick="ttsSeek(event)" title="คลิกเพื่อข้ามย่อหน้า">
-          <div class="tts-progress-fill" id="ttsProgressFill"></div>
-          <span class="tts-para-label" id="ttsParaLabel">—</span>
+      <div class="search-box">
+        <input type="number" id="jumpInput" placeholder="ไปบทที่..." min="0" max="1900">
+        <button onclick="jumpToChapter()">ไป</button>
+      </div>
+
+      <div class="toc-info">
+        <span id="indexStatus">กำลังโหลด...</span>
+      </div>
+
+      <div id="tocList" class="toc-list">
+        <!-- Chapter list populated by JS -->
+      </div>
+    </aside>
+
+    <!-- Toggle sidebar button -->
+    <button id="sidebarToggle" onclick="toggleSidebar()" title="เปิด/ปิด สารบัญ">☰</button>
+
+    <!-- Main reader -->
+    <main id="reader">
+      <!-- Top bar -->
+      <div class="topbar">
+        <div class="topbar-left">
+          <button class="btn-icon" onclick="toggleSidebar()" title="สารบัญ">☰</button>
+          <span id="currentChapterTitle">Against the Gods อสูรพลิกฟ้า</span>
         </div>
-        <input type="range" class="tts-volume-slider" id="ttsVolumeSlider"
-          min="0" max="1" step="0.05" value="1"
-          oninput="ttsSetVolume(this.value)" title="ระดับเสียง">
-        <select class="tts-speed-select" id="ttsSpeedSelect" onchange="ttsChangeSpeed(this.value)" title="ความเร็ว">
-          <option value="0.75">0.75×</option>
-          <option value="1.0" selected>1.0×</option>
-          <option value="1.25">1.25×</option>
-          <option value="1.5">1.5×</option>
-          <option value="2.0">2.0×</option>
+        <div class="topbar-right">
+          <button class="btn-icon" onclick="changeFontSize(-1)" title="ลดตัวอักษร">A-</button>
+          <button class="btn-icon" onclick="changeFontSize(1)" title="เพิ่มตัวอักษร">A+</button>
+          <button class="btn-icon" onclick="toggleTheme()" id="themeBtn" title="เปลี่ยนธีม">☀️</button>
+          <button class="btn-icon" id="ttsMasterBtn" onclick="ttsTogglePlayer()" title="อ่านออกเสียง">🔊</button>
+        </div>
+      </div>
+
+      <!-- TTS Player Bar -->
+      <div id="ttsBar" class="tts-bar" style="display:none">
+        <div class="tts-controls">
+          <button class="tts-btn" id="ttsPlayBtn" onclick="ttsPlay()" title="เล่น (Space)">▶</button>
+          <button class="tts-btn" id="ttsPauseBtn" onclick="ttsPause()" title="หยุดชั่วคราว (Space)"
+            style="display:none">⏸</button>
+          <button class="tts-btn tts-btn-stop" onclick="ttsStop()" title="หยุด (Esc)">⏹</button>
+          <button class="tts-btn" id="ttsSkipPrevBtn" onclick="ttsSkipPrev()" title="ย่อหน้าก่อน (Shift+←)">⏮</button>
+          <button class="tts-btn" id="ttsSkipNextBtn" onclick="ttsSkipNext()" title="ย่อหน้าถัดไป (Shift+→)">⏭</button>
+          <div class="tts-progress-wrap" id="ttsProgressWrap" onclick="ttsSeek(event)" title="คลิกเพื่อข้ามย่อหน้า">
+            <div class="tts-progress-fill" id="ttsProgressFill"></div>
+            <span class="tts-para-label" id="ttsParaLabel">—</span>
+          </div>
+          <input type="range" class="tts-volume-slider" id="ttsVolumeSlider" min="0" max="1" step="0.05" value="1"
+            oninput="ttsSetVolume(this.value)" title="ระดับเสียง">
+          <select class="tts-speed-select" id="ttsSpeedSelect" onchange="ttsChangeSpeed(this.value)" title="ความเร็ว">
+            <option value="0.75">0.75×</option>
+            <option value="1.0" selected>1.0×</option>
+            <option value="1.25">1.25×</option>
+            <option value="1.5">1.5×</option>
+            <option value="2.0">2.0×</option>
+          </select>
+          <button class="tts-btn tts-btn-settings" onclick="ttsOpenSettings()" title="ตั้งค่าเสียง">⚙️</button>
+        </div>
+        <div class="tts-usage-row">
+          <div class="tts-usage-bar-wrap">
+            <div class="tts-usage-fill" id="ttsUsageFill"></div>
+          </div>
+          <span class="tts-usage-label" id="ttsUsageLabel">โหลด…</span>
+          <span class="tts-hint">กดย่อหน้าใดก็ได้เพื่อเริ่มอ่านจากจุดนั้น</span>
+        </div>
+      </div>
+
+      <!-- Content area -->
+      <article id="content">
+        <div class="welcome">
+          <div class="cover-art">⚔️</div>
+          <h2>Against the Gods</h2>
+          <h3>อสูรพลิกฟ้า</h3>
+          <p class="welcome-meta">ประพันธ์โดย 火星引力 | แปลโดย Aradeer</p>
+          <p class="welcome-desc">ทุกคนต่างตามล่าเขาซึ่งเป็นผู้ครอบครองของวิเศษ เขาจึงกลืนมันแล้วกระโดดหน้าผาจบชีวิต...
+          </p>
+          <div class="start-buttons">
+            <button class="btn-primary" onclick="loadChapter(0)">📖 บทนำ</button>
+            <button class="btn-primary" onclick="loadChapter(1)">บทที่ 1 →</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- Navigation -->
+      <nav class="chapter-nav" id="chapterNav" style="display:none">
+        <button id="prevBtn" class="btn-nav" onclick="prevChapter()">← บทก่อน</button>
+        <span id="navInfo"></span>
+        <button id="nextBtn" class="btn-nav" onclick="nextChapter()">บทถัดไป →</button>
+      </nav>
+    </main>
+
+    <!-- Loading overlay -->
+    <div id="loading" class="loading-overlay" style="display:none">
+      <div class="spinner"></div>
+      <p>กำลังโหลดบท...</p>
+    </div>
+
+    <!-- Backdrop for mobile sidebar -->
+    <div id="sidebarBackdrop" class="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+  </div>
+
+  <!-- TTS Settings Modal -->
+  <div id="ttsSettingsOverlay" class="modal-overlay" style="display:none" onclick="ttsCloseSettingsOutside(event)">
+    <div class="modal-box tts-modal">
+      <div class="modal-header">
+        <h3>⚙️ ตั้งค่าเสียงอ่าน</h3>
+        <button class="modal-close" onclick="ttsCloseSettings()">✕</button>
+      </div>
+
+      <!-- Engine info -->
+      <div class="tts-section">
+        <div class="tts-section-title">🔊 เครื่องมือ TTS</div>
+        <div class="tts-usage-detail" id="ttsUsageDetail">กำลังโหลด…</div>
+      </div>
+
+      <!-- Voice Presets -->
+      <div class="tts-section">
+        <div class="tts-preset-tabs">
+          <button class="tts-tab active" onclick="ttsSelectTab('narrator', this)">📖 บรรยาย</button>
+          <button class="tts-tab" onclick="ttsSelectTab('dialogue_male', this)">👨 ชาย</button>
+          <button class="tts-tab" onclick="ttsSelectTab('dialogue_female', this)">👩 หญิง</button>
+        </div>
+
+        <div id="ttsPresetPanel">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Dialogue detection note -->
+      <div class="tts-note">
+        💡 ย่อหน้าที่ขึ้นต้นด้วย " หรือ " จะใช้เสียงตัวละคร<br>
+        ตั้งค่า <strong>เพศเริ่มต้นบทสนทนา</strong>:
+        <select id="ttsDefaultGender" onchange="ttsSetDefaultGender(this.value)" class="tts-gender-select">
+          <option value="male">ชาย</option>
+          <option value="female">หญิง</option>
         </select>
-        <button class="tts-btn tts-btn-settings" onclick="ttsOpenSettings()" title="ตั้งค่าเสียง">⚙️</button>
       </div>
-      <div class="tts-usage-row">
-        <div class="tts-usage-bar-wrap">
-          <div class="tts-usage-fill" id="ttsUsageFill"></div>
-        </div>
-        <span class="tts-usage-label" id="ttsUsageLabel">โหลด…</span>
-        <span class="tts-hint">กดย่อหน้าใดก็ได้เพื่อเริ่มอ่านจากจุดนั้น</span>
+
+      <!-- Auto-next chapter -->
+      <div class="tts-note">
+        <label class="tts-checkbox-label">
+          <input type="checkbox" id="ttsAutoNextChk" onchange="tts.autoNextChapter = this.checked" checked>
+          📖 อ่านต่อบทถัดไปโดยอัตโนมัติ
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-primary" onclick="ttsCloseSettings()">ปิด</button>
       </div>
     </div>
-
-    <!-- Content area -->
-    <article id="content">
-      <div class="welcome">
-        <div class="cover-art">⚔️</div>
-        <h2>Against the Gods</h2>
-        <h3>อสูรพลิกฟ้า</h3>
-        <p class="welcome-meta">ประพันธ์โดย 火星引力 | แปลโดย Aradeer</p>
-        <p class="welcome-desc">ทุกคนต่างตามล่าเขาซึ่งเป็นผู้ครอบครองของวิเศษ เขาจึงกลืนมันแล้วกระโดดหน้าผาจบชีวิต...</p>
-        <div class="start-buttons">
-          <button class="btn-primary" onclick="loadChapter(0)">📖 บทนำ</button>
-          <button class="btn-primary" onclick="loadChapter(1)">บทที่ 1 →</button>
-        </div>
-      </div>
-    </article>
-
-    <!-- Navigation -->
-    <nav class="chapter-nav" id="chapterNav" style="display:none">
-      <button id="prevBtn" class="btn-nav" onclick="prevChapter()">← บทก่อน</button>
-      <span id="navInfo"></span>
-      <button id="nextBtn" class="btn-nav" onclick="nextChapter()">บทถัดไป →</button>
-    </nav>
-  </main>
-
-  <!-- Loading overlay -->
-  <div id="loading" class="loading-overlay" style="display:none">
-    <div class="spinner"></div>
-    <p>กำลังโหลดบท...</p>
   </div>
 
-</div>
-
-<!-- TTS Settings Modal -->
-<div id="ttsSettingsOverlay" class="modal-overlay" style="display:none" onclick="ttsCloseSettingsOutside(event)">
-  <div class="modal-box tts-modal">
-    <div class="modal-header">
-      <h3>⚙️ ตั้งค่าเสียงอ่าน</h3>
-      <button class="modal-close" onclick="ttsCloseSettings()">✕</button>
-    </div>
-
-    <!-- Engine info -->
-    <div class="tts-section">
-      <div class="tts-section-title">🔊 เครื่องมือ TTS</div>
-      <div class="tts-usage-detail" id="ttsUsageDetail">กำลังโหลด…</div>
-    </div>
-
-    <!-- Voice Presets -->
-    <div class="tts-section">
-      <div class="tts-preset-tabs">
-        <button class="tts-tab active" onclick="ttsSelectTab('narrator', this)">📖 บรรยาย</button>
-        <button class="tts-tab" onclick="ttsSelectTab('dialogue_male', this)">👨 ชาย</button>
-        <button class="tts-tab" onclick="ttsSelectTab('dialogue_female', this)">👩 หญิง</button>
-      </div>
-
-      <div id="ttsPresetPanel">
-        <!-- Populated by JS -->
-      </div>
-    </div>
-
-    <!-- Dialogue detection note -->
-    <div class="tts-note">
-      💡 ย่อหน้าที่ขึ้นต้นด้วย " หรือ " จะใช้เสียงตัวละคร<br>
-      ตั้งค่า <strong>เพศเริ่มต้นบทสนทนา</strong>:
-      <select id="ttsDefaultGender" onchange="ttsSetDefaultGender(this.value)" class="tts-gender-select">
-        <option value="male">ชาย</option>
-        <option value="female">หญิง</option>
-      </select>
-    </div>
-
-    <!-- Auto-next chapter -->
-    <div class="tts-note">
-      <label class="tts-checkbox-label">
-        <input type="checkbox" id="ttsAutoNextChk" onchange="tts.autoNextChapter = this.checked" checked>
-        📖 อ่านต่อบทถัดไปโดยอัตโนมัติ
-      </label>
-    </div>
-
-    <div class="modal-actions">
-      <button class="btn-primary" onclick="ttsCloseSettings()">ปิด</button>
-    </div>
-  </div>
-</div>
-
-<script src="/static/script.js"></script>
+  <script src="/static/script.js"></script>
 </body>
+
 </html>
