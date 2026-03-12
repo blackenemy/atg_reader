@@ -220,6 +220,44 @@ body {
   transform: rotate(90deg);
 }
 
+/* ── Sidebar Close Button (mobile only) ── */
+.sidebar-close-btn {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .sidebar-header {
+    position: relative;
+    padding-right: 44px; /* make room for close btn */
+  }
+
+  .sidebar-close-btn {
+    display: flex;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    z-index: 1;
+  }
+
+  .sidebar-close-btn:hover {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+}
+
 /* ── Sidebar Toggle Button ── */
 #sidebarToggle {
   display: none;

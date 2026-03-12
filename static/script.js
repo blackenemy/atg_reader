@@ -5,6 +5,7 @@ let totalChapters = 1900;
 let fontSize = 18;
 let knownChapters = {};
 let tocRendered = false;
+let ttsAvailable = null; // null=unchecked, true/false after first check
 
 // ── Init ──
 document.addEventListener("DOMContentLoaded", () => {
@@ -39,6 +40,9 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("jumpInput").addEventListener("keydown", (e) => {
     if (e.key === "Enter") jumpToChapter();
   });
+
+  // Check TTS availability (static hosting vs Flask server)
+  _checkTtsAvailable();
 
   // Restore last chapter from server bookmark (persistent across sessions)
   restoreBookmark();
@@ -294,26 +298,41 @@ function renderChapter(data) {
   }
 }
 
-// ── Bookmark (server-side persistence) ──
+// ── Bookmark (server-side + localStorage fallback) ──
 function saveBookmark(chapter, title) {
+  // Always save to localStorage (works everywhere)
+  localStorage.setItem("atg_bookmark", JSON.stringify({ chapter, title }));
+  // Also try server (Flask only — silent fail on Netlify)
   fetch("/api/bookmark", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chapter, title }),
-  }).catch(() => { }); // silent fail
+  }).catch(() => { });
 }
 
 async function restoreBookmark() {
+  // Try server first (Flask), fall back to localStorage
   try {
     const res = await fetch("/api/bookmark");
+    if (!res.ok) throw new Error("api unavailable");
     const bm = await res.json();
     if (bm.chapter !== null && bm.chapter !== undefined) {
-      // Show toast notification
       showBookmarkToast(bm.chapter, bm.title);
       setTimeout(() => loadChapter(bm.chapter), 400);
+      return;
     }
   } catch (e) {
-    // No bookmark saved yet, do nothing
+    // Server unavailable — try localStorage
+    const local = localStorage.getItem("atg_bookmark");
+    if (local) {
+      try {
+        const bm = JSON.parse(local);
+        if (bm.chapter !== null && bm.chapter !== undefined) {
+          showBookmarkToast(bm.chapter, bm.title);
+          setTimeout(() => loadChapter(bm.chapter), 400);
+        }
+      } catch (_) { }
+    }
   }
 }
 
@@ -471,7 +490,8 @@ const tts = {
   volume: 1.0,
   defaultGender: "male",
   abortCtrl: null,
-  autoNextChapter: true,   // อ่านต่อบทถัดไปอัตโนมัติ
+  autoNextChapter: true,      // อ่านต่อบทถัดไปอัตโนมัติ
+  consecutiveFailures: 0,     // ป้องกัน loop ไม่สิ้นสุดเมื่อ server ไม่ตอบ
 };
 
 function ttsGetPresets() {
@@ -490,8 +510,36 @@ function ttsGetParaPreset(text) {
   return tts.defaultGender === "female" ? "dialogue_female" : "dialogue_male";
 }
 
+// ── TTS availability check (skips on Netlify/static hosting) ──
+async function _checkTtsAvailable() {
+  if (ttsAvailable !== null) return ttsAvailable;
+  try {
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 3000);
+    const res = await fetch("/api/tts/usage", { signal: ctrl.signal });
+    clearTimeout(timeout);
+    ttsAvailable = res.ok;
+  } catch (_) {
+    ttsAvailable = false;
+  }
+  if (!ttsAvailable) {
+    const btn = document.getElementById("ttsMasterBtn");
+    if (btn) {
+      btn.title = "TTS ไม่รองรับบน Netlify (ต้องใช้ server Python)";
+      btn.style.opacity = "0.45";
+      btn.style.cursor = "not-allowed";
+    }
+  }
+  return ttsAvailable;
+}
+
 // ── Toggle player bar ──
-function ttsTogglePlayer() {
+async function ttsTogglePlayer() {
+  const ok = await _checkTtsAvailable();
+  if (!ok) {
+    _showToast("🔇 ระบบอ่านออกเสียงต้องการ server Python\nไม่รองรับบน Netlify static hosting", 4000);
+    return;
+  }
   tts.active = !tts.active;
   document.getElementById("ttsBar").style.display = tts.active ? "block" : "none";
   document.getElementById("ttsMasterBtn").classList.toggle("active", tts.active);
@@ -501,6 +549,21 @@ function ttsTogglePlayer() {
   } else {
     ttsStop();
   }
+}
+
+function _showToast(msg, ms = 3000) {
+  const t = document.createElement("div");
+  t.style.cssText = `
+    position:fixed;bottom:24px;right:24px;z-index:600;
+    background:var(--surface2);color:var(--text);
+    padding:12px 18px;border-radius:10px;
+    border:1px solid var(--border);
+    font-size:0.85rem;line-height:1.6;white-space:pre-line;
+    box-shadow:0 4px 16px rgba(0,0,0,0.3);
+  `;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), ms);
 }
 
 // ── Play / Pause / Stop ──
@@ -647,6 +710,7 @@ async function _ttsPlayCurrent() {
       tts.audio.play().catch(reject);
     });
     if (!tts.playing) return;
+    tts.consecutiveFailures = 0; // reset on success
     tts.index++;
     _ttsPrefetch(tts.index, 5);
     _ttsPlayCurrent();
@@ -655,6 +719,14 @@ async function _ttsPlayCurrent() {
     if (err?.name === "AbortError") return;
     console.warn("TTS skip:", err);
     para.el.classList.remove("tts-loading");
+    tts.consecutiveFailures++;
+    // หยุดถ้า fail ติดต่อกัน 3 ครั้ง (เช่น server ไม่ตอบ)
+    if (tts.consecutiveFailures >= 3) {
+      console.warn("TTS: หยุดเนื่องจากเกิดข้อผิดพลาดต่อเนื่อง");
+      ttsStop();
+      _showToast("⚠️ TTS หยุดทำงาน เนื่องจากเกิดข้อผิดพลาดต่อเนื่อง");
+      return;
+    }
     tts.index++;
     _ttsPlayCurrent();
   }

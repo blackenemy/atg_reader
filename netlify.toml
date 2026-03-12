@@ -1,25 +1,50 @@
+# Against the Gods Reader — Netlify static deployment
+#
+# ❗ Before deploying: run generate_static.py locally first
+#    python generate_static.py
+#    git add index.html info.json index-data.json api-unavailable.json chapters/
+#    git push
+#
+# TTS and Bookmark persistence require a Python server — NOT available on Netlify.
+# The app automatically detects static mode and disables those features gracefully.
+
 [build]
-  command = "pip install -r requirements.txt && mkdir -p public && cp -r static public/ && cp templates/index.html public/"
-  functions = "netlify/functions"
-  publish = "public"
+  publish = "."
+  # Static files are pre-generated locally — nothing to build on Netlify CI
+  command = "echo 'Static files pre-generated. Run generate_static.py locally to update.'"
 
-[build.environment]
-  PYTHON_VERSION = "3.11"
+# ── API rewrites: map /api/* paths to pre-generated static JSON files ──
+# status = 200 → transparent rewrite (browser URL stays the same)
 
-# Static files
 [[redirects]]
-  from = "/static/*"
-  to = "/static/:splat"
+  from   = "/api/chapter/:num"
+  to     = "/chapters/:num.json"
   status = 200
 
-# API routes
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api:splat"
+  from   = "/api/info"
+  to     = "/info.json"
   status = 200
 
-# Everything else to app
 [[redirects]]
-  from = "/*"
-  to = "/.netlify/functions/api"
+  from   = "/api/index"
+  to     = "/index-data.json"
+  status = 200
+
+# Bookmark + TTS need Python server → return generic unavailable JSON
+# JS handles these failures gracefully (bookmark → localStorage, TTS → disabled)
+[[redirects]]
+  from   = "/api/bookmark"
+  to     = "/api-unavailable.json"
+  status = 200
+
+[[redirects]]
+  from   = "/api/tts/*"
+  to     = "/api-unavailable.json"
+  status = 200
+
+# SPA fallback: any unknown path → index.html
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
   status = 200
