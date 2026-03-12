@@ -24,12 +24,12 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       if (e.key === "Escape") { ttsStop(); return; }
-      if (e.shiftKey && e.key === "ArrowLeft")  { e.preventDefault(); ttsSkipPrev(); return; }
+      if (e.shiftKey && e.key === "ArrowLeft") { e.preventDefault(); ttsSkipPrev(); return; }
       if (e.shiftKey && e.key === "ArrowRight") { e.preventDefault(); ttsSkipNext(); return; }
     }
     // Chapter nav (only when TTS not active or shift not pressed)
     if (!e.shiftKey) {
-      if (e.key === "ArrowLeft"  || e.key === ",") prevChapter();
+      if (e.key === "ArrowLeft" || e.key === ",") prevChapter();
       if (e.key === "ArrowRight" || e.key === ".") nextChapter();
     }
     if (e.key === "Escape") closeSidebar();
@@ -69,7 +69,7 @@ async function fetchInfo() {
     const data = await res.json();
     totalChapters = data.total_chapters;
     document.getElementById("jumpInput").max = totalChapters;
-  } catch (e) {}
+  } catch (e) { }
 
   // Poll index status
   pollIndexStatus();
@@ -95,7 +95,7 @@ async function pollIndexStatus() {
     if (count > Object.keys(knownChapters).length || !tocRendered) {
       buildTocSkeleton();
     }
-  } catch (e) {}
+  } catch (e) { }
 }
 
 // ── Table of Contents ──
@@ -273,7 +273,7 @@ function renderChapter(data) {
       if (tts.audio) { tts.audio.pause(); tts.audio = null; }
       tts.index = idx;
       tts.playing = true;
-      tts.paused  = false;
+      tts.paused = false;
       _ttsSetPlayUI(true);
       // Ensure paragraphs are collected
       if (!tts.paragraphs.length) {
@@ -300,7 +300,7 @@ function saveBookmark(chapter, title) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chapter, title }),
-  }).catch(() => {}); // silent fail
+  }).catch(() => { }); // silent fail
 }
 
 async function restoreBookmark() {
@@ -357,16 +357,21 @@ function jumpToChapter() {
 function toggleSidebar() {
   const sidebar = document.getElementById("sidebar");
   const backdrop = document.getElementById("sidebarBackdrop");
-  const isOpening = sidebar.classList.contains("closed");
-  
+
+  // Toggle the 'closed' class
   sidebar.classList.toggle("closed");
+
+  // On mobile, also toggle an 'open' class for cleaner animation logic if needed,
+  // but for now we'll stick to 'closed' logic and handle the backdrop
+  const isNowOpen = !sidebar.classList.contains("closed");
+
   if (backdrop) {
-    backdrop.classList.toggle("active", isOpening);
+    backdrop.classList.toggle("active", isNowOpen);
   }
-  
+
   // Prevent scroll on mobile when sidebar is open
   if (window.innerWidth <= 768) {
-    document.body.style.overflow = isOpening ? "hidden" : "";
+    document.body.style.overflow = isNowOpen ? "hidden" : "";
   }
 }
 
@@ -431,7 +436,7 @@ function setupScrollProgress() {
 // edge-tts: Microsoft Edge Neural TTS (ฟรี ไม่ต้องใช้ API key)
 const TTS_VOICES = [
   { value: "th-TH-PremwadeeNeural", label: "Premwadee — หญิง ★" },
-  { value: "th-TH-NiwatNeural",     label: "Niwat — ชาย ★" },
+  { value: "th-TH-NiwatNeural", label: "Niwat — ชาย ★" },
 ];
 
 const TTS_PRESETS_DEFAULT = {
@@ -667,9 +672,9 @@ async function _ttsFetchAudio(text, cfg) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       text,
-      voice:     cfg.voice,
-      rate_pct:  cfg.rate_pct  ?? 0,
-      pitch_hz:  cfg.pitch_hz  ?? 0,
+      voice: cfg.voice,
+      rate_pct: cfg.rate_pct ?? 0,
+      pitch_hz: cfg.pitch_hz ?? 0,
     }),
     signal: tts.abortCtrl.signal,
   }).then(async res => {
@@ -702,14 +707,14 @@ function _ttsPrefetch(fromIdx, count) {
     const cfg = presets[para.preset] || presets.narrator;
     const key = JSON.stringify({ text: para.text, ...cfg });
     if (!tts.blobCache[key] && !tts.prefetchQueue[key]) {
-      _ttsFetchAudio(para.text, cfg).catch(() => {});
+      _ttsFetchAudio(para.text, cfg).catch(() => { });
     }
   }
 }
 
 // ── UI helpers ──
 function _ttsSetPlayUI(playing) {
-  document.getElementById("ttsPlayBtn").style.display  = playing ? "none"   : "inline-flex";
+  document.getElementById("ttsPlayBtn").style.display = playing ? "none" : "inline-flex";
   document.getElementById("ttsPauseBtn").style.display = playing ? "inline-flex" : "none";
 }
 
@@ -724,15 +729,15 @@ function _ttsUpdateProgress() {
 }
 
 function _ttsUpdateUsageLabel(used) {
-  const fill  = document.getElementById("ttsUsageFill");
+  const fill = document.getElementById("ttsUsageFill");
   const label = document.getElementById("ttsUsageLabel");
-  if (fill)  fill.style.width = "100%";   // edge-tts ไม่มี limit
+  if (fill) fill.style.width = "100%";   // edge-tts ไม่มี limit
   if (label) label.textContent = `ใช้ไป ${used.toLocaleString()} ตัวอักษร (ฟรี ไม่จำกัด)`;
 }
 
 async function ttsRefreshUsage() {
   try {
-    const res  = await fetch("/api/tts/usage");
+    const res = await fetch("/api/tts/usage");
     const data = await res.json();
     const detailEl = document.getElementById("ttsUsageDetail");
     if (detailEl) {
@@ -740,7 +745,7 @@ async function ttsRefreshUsage() {
         `✅ edge-tts (Microsoft Neural) — ฟรี ไม่จำกัด\nใช้ไปแล้ว ${data.chars_used.toLocaleString()} ตัวอักษรเดือน ${data.month}`;
     }
     _ttsUpdateUsageLabel(data.chars_used);
-  } catch (e) {}
+  } catch (e) { }
 }
 
 // ── Settings modal ──

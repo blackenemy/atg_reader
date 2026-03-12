@@ -223,7 +223,26 @@ body {
 /* ── Sidebar Toggle Button ── */
 #sidebarToggle {
   display: none;
-  /* hidden on desktop, shown in topbar */
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  border: none;
+  font-size: 1.5rem;
+  z-index: 1000;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+}
+
+#sidebarToggle:active {
+  transform: scale(0.9);
 }
 
 /* ── Main Reader ── */
@@ -597,6 +616,10 @@ body.light .topbar {
   .topbar-right .btn-icon:nth-child(1),
   .topbar-right .btn-icon:nth-child(2) {
     display: none;
+  }
+
+  #sidebarToggle {
+    display: flex;
   }
 }
 
