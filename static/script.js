@@ -6,6 +6,8 @@ let fontSize = 18;
 let knownChapters = {};
 let tocRendered = false;
 let ttsAvailable = null; // null=unchecked, true/false after first check
+let useWebSpeechAPI = false; // fallback when server TTS unavailable
+let synth = null; // Web Speech API synthesis
 
 // ── Init ──
 document.addEventListener("DOMContentLoaded", () => {
@@ -522,15 +524,33 @@ async function _checkTtsAvailable() {
   } catch (_) {
     ttsAvailable = false;
   }
+  
+  // If server TTS not available, try Web Speech API fallback
   if (!ttsAvailable) {
-    const btn = document.getElementById("ttsMasterBtn");
-    if (btn) {
-      btn.title = "TTS ไม่รองรับบน Netlify (ต้องใช้ server Python)";
-      btn.style.opacity = "0.45";
-      btn.style.cursor = "not-allowed";
+    const webSpeechAvailable = "speechSynthesis" in window;
+    if (webSpeechAvailable) {
+      useWebSpeechAPI = true;
+      synth = window.speechSynthesis;
+      const btn = document.getElementById("ttsMasterBtn");
+      if (btn) {
+        btn.title = "อ่านออกเสียง (Web Speech API)";
+        btn.style.opacity = "1";
+        btn.style.cursor = "pointer";
+      }
+      return true; // TTS is available via Web Speech API
+    } else {
+      const btn = document.getElementById("ttsMasterBtn");
+      if (btn) {
+        btn.title = "TTS ไม่รองรับ (ต้องใช้ server หรือ browser ที่รองรับ Web Speech)";
+        btn.style.opacity = "0.45";
+        btn.style.cursor = "not-allowed";
+      }
+      return false;
     }
   }
-  return ttsAvailable;
+  
+  ttsAvailable = true;
+  return true;
 }
 
 // ── Toggle player bar ──
@@ -593,7 +613,12 @@ function ttsPlay() {
 }
 
 function ttsPause() {
-  if (tts.audio && !tts.audio.paused) {
+  if (useWebSpeechAPI && synth) {
+    synth.pause();
+    tts.paused = true;
+    tts.playing = false;
+    _ttsSetPlayUI(false);
+  } else if (tts.audio && !tts.audio.paused) {
     tts.audio.pause();
     tts.paused = true;
     tts.playing = false;
@@ -604,6 +629,9 @@ function ttsPause() {
 function ttsStop() {
   tts.playing = false;
   tts.paused = false;
+  if (useWebSpeechAPI && synth) {
+    synth.cancel();
+  }
   if (tts.audio) {
     tts.audio.pause();
     tts.audio.src = "";
@@ -617,16 +645,25 @@ function ttsStop() {
 
 function ttsChangeSpeed(val) {
   tts.speedMultiplier = parseFloat(val);
+  if (useWebSpeechAPI && synth && synth.speaking) {
+    synth.cancel(); // Need to restart with new rate
+  }
   if (tts.audio) tts.audio.playbackRate = tts.speedMultiplier;
 }
 
 function ttsSetVolume(val) {
   tts.volume = parseFloat(val);
+  if (useWebSpeechAPI && synth && synth.speaking) {
+    synth.cancel(); // Need to restart with new volume
+  }
   if (tts.audio) tts.audio.volume = tts.volume;
 }
 
 function ttsSkipPrev() {
   if (!tts.paragraphs.length) return;
+  if (useWebSpeechAPI && synth) {
+    synth.cancel();
+  }
   if (tts.audio) { tts.audio.pause(); tts.audio = null; }
   tts.index = Math.max(0, tts.index - 1);
   if (tts.playing || tts.paused) {
@@ -639,6 +676,9 @@ function ttsSkipPrev() {
 
 function ttsSkipNext() {
   if (!tts.paragraphs.length) return;
+  if (useWebSpeechAPI && synth) {
+    synth.cancel();
+  }
   if (tts.audio) { tts.audio.pause(); tts.audio = null; }
   tts.index = Math.min(tts.paragraphs.length - 1, tts.index + 1);
   if (tts.playing || tts.paused) {
@@ -694,21 +734,35 @@ async function _ttsPlayCurrent() {
   _ttsUpdateProgress();
 
   try {
-    const blobUrl = await _ttsFetchAudio(para.text, cfg);
+    const audioUrlOrData = await _ttsFetchAudio(para.text, cfg);
     if (!tts.playing) return;
 
     // Swap loading → active
     para.el.classList.remove("tts-loading");
     para.el.classList.add("tts-active");
 
-    tts.audio = new Audio(blobUrl);
-    tts.audio.playbackRate = tts.speedMultiplier;
-    tts.audio.volume = tts.volume;
-    await new Promise((resolve, reject) => {
-      tts.audio.onended = resolve;
-      tts.audio.onerror = reject;
-      tts.audio.play().catch(reject);
-    });
+    // Check if using Web Speech API
+    if (useWebSpeechAPI && typeof audioUrlOrData === "object" && audioUrlOrData.utterance) {
+      // Web Speech API playback
+      const utterance = audioUrlOrData.utterance;
+      await new Promise((resolve, reject) => {
+        utterance.onended = resolve;
+        utterance.onerror = (e) => reject(new Error(e.error));
+        synth.cancel(); // Cancel any ongoing speech
+        synth.speak(utterance);
+      });
+    } else {
+      // Server TTS playback (HTML5 Audio element)
+      tts.audio = new Audio(audioUrlOrData);
+      tts.audio.playbackRate = tts.speedMultiplier;
+      tts.audio.volume = tts.volume;
+      await new Promise((resolve, reject) => {
+        tts.audio.onended = resolve;
+        tts.audio.onerror = reject;
+        tts.audio.play().catch(reject);
+      });
+    }
+    
     if (!tts.playing) return;
     tts.consecutiveFailures = 0; // reset on success
     tts.index++;
@@ -738,6 +792,42 @@ async function _ttsFetchAudio(text, cfg) {
   if (tts.blobCache[key]) return tts.blobCache[key];
   if (tts.prefetchQueue[key]) return tts.prefetchQueue[key];
 
+  // Use Web Speech API if server TTS not available
+  if (useWebSpeechAPI) {
+    return new Promise((resolve, reject) => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      // Set language to Thai
+      utterance.lang = "th-TH";
+      
+      // Set voice based on config
+      const voices = synth.getVoices();
+      if (cfg.voice && cfg.voice.includes("male")) {
+        const maleVoice = voices.find(v => v.lang.includes("th") || v.lang === "th-TH");
+        if (maleVoice) utterance.voice = maleVoice;
+      } else {
+        const femaleVoice = voices.find(v => v.lang.includes("th") || v.lang === "th-TH");
+        if (femaleVoice) utterance.voice = femaleVoice;
+      }
+      
+      // Set rate and pitch
+      utterance.rate = 1.0 + ((cfg.rate_pct ?? 0) / 100);
+      utterance.pitch = 1.0 + ((cfg.pitch_hz ?? 0) / 10);
+      utterance.volume = tts.volume;
+      
+      // Store as dummy URL to bypass audio element code
+      const dummyUrl = `web-speech://${key}`;
+      tts.blobCache[key] = { utterance, dummyUrl };
+      delete tts.prefetchQueue[key];
+      
+      utterance.onend = () => resolve(dummyUrl);
+      utterance.onerror = (e) => reject(new Error(e.error));
+      
+      resolve(dummyUrl);
+    });
+  }
+
+  // Original server TTS implementation
   tts.abortCtrl = new AbortController();
   const promise = fetch("/api/tts/synthesize", {
     method: "POST",
