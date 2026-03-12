@@ -1,11 +1,24 @@
 [build]
-  command = "pip install -r requirements.txt && mkdir -p public && cp -r templates/* public/ 2>/dev/null; cp -r static/* public/ 2>/dev/null; true"
+  command = "pip install -r requirements.txt && mkdir -p public && cp -r static public/ && cp templates/index.html public/"
   functions = "netlify/functions"
   publish = "public"
 
 [build.environment]
   PYTHON_VERSION = "3.11"
 
+# Static files
+[[redirects]]
+  from = "/static/*"
+  to = "/static/:splat"
+  status = 200
+
+# API routes
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api:splat"
+  status = 200
+
+# Everything else to app
 [[redirects]]
   from = "/*"
   to = "/.netlify/functions/api"

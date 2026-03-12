@@ -70,6 +70,8 @@ def get_reader():
     global _pdf_reader
     if _pdf_reader is None:
         from pypdf import PdfReader
+        if not os.path.exists(PDF_PATH):
+            return None  # PDF not available on Netlify
         _pdf_reader = PdfReader(PDF_PATH)
     return _pdf_reader
 
@@ -320,6 +322,9 @@ def api_info():
 
 @app.route("/api/chapter/<int:chapter_num>")
 def api_chapter(chapter_num):
+    reader = get_reader()
+    if reader is None:
+        return jsonify({"error": "PDF file not available on this deployment"}), 503
     if chapter_num < 0 or chapter_num > TOTAL_CHAPTERS:
         return jsonify({"error": "Chapter out of range"}), 404
     data = extract_chapter(chapter_num)
