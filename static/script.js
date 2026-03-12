@@ -8,6 +8,7 @@ let tocRendered = false;
 let ttsAvailable = null; // null=unchecked, true/false after first check
 let useWebSpeechAPI = false; // fallback when server TTS unavailable
 let synth = null; // Web Speech API synthesis
+let ttsEngine = "edge-tts"; // "edge-tts", "elevenlabs", or "webspeech"
 
 // ── Init ──
 document.addEventListener("DOMContentLoaded", () => {
@@ -515,42 +516,66 @@ function ttsGetParaPreset(text) {
 // ── TTS availability check (skips on Netlify/static hosting) ──
 async function _checkTtsAvailable() {
   if (ttsAvailable !== null) return ttsAvailable;
+  
+  // Try edge-tts first
   try {
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 3000);
     const res = await fetch("/api/tts/usage", { signal: ctrl.signal });
     clearTimeout(timeout);
-    ttsAvailable = res.ok;
-  } catch (_) {
-    ttsAvailable = false;
-  }
-  
-  // If server TTS not available, try Web Speech API fallback
-  if (!ttsAvailable) {
-    const webSpeechAvailable = "speechSynthesis" in window;
-    if (webSpeechAvailable) {
-      useWebSpeechAPI = true;
-      synth = window.speechSynthesis;
-      const btn = document.getElementById("ttsMasterBtn");
-      if (btn) {
-        btn.title = "อ่านออกเสียง (Web Speech API)";
-        btn.style.opacity = "1";
-        btn.style.cursor = "pointer";
-      }
-      return true; // TTS is available via Web Speech API
-    } else {
-      const btn = document.getElementById("ttsMasterBtn");
-      if (btn) {
-        btn.title = "TTS ไม่รองรับ (ต้องใช้ server หรือ browser ที่รองรับ Web Speech)";
-        btn.style.opacity = "0.45";
-        btn.style.cursor = "not-allowed";
-      }
-      return false;
+    if (res.ok) {
+      ttsAvailable = true;
+      ttsEngine = "edge-tts";
+      return true;
     }
+  } catch (_) { }
+  
+  // Try ElevenLabs API
+  try {
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 3000);
+    const res = await fetch("/api/tts/elevenlabs/synthesize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: "test" }),
+      signal: ctrl.signal
+    });
+    clearTimeout(timeout);
+    if (res.ok) {
+      ttsAvailable = true;
+      ttsEngine = "elevenlabs";
+      const btn = document.getElementById("ttsMasterBtn");
+      if (btn) {
+        btn.title = "อ่านออกเสียง (ElevenLabs AI)";
+      }
+      return true;
+    }
+  } catch (_) { }
+  
+  // Fall back to Web Speech API
+  if ("speechSynthesis" in window) {
+    useWebSpeechAPI = true;
+    synth = window.speechSynthesis;
+    ttsEngine = "webspeech";
+    ttsAvailable = true;
+    const btn = document.getElementById("ttsMasterBtn");
+    if (btn) {
+      btn.title = "อ่านออกเสียง (Web Speech API)";
+      btn.style.opacity = "1";
+      btn.style.cursor = "pointer";
+    }
+    return true;
   }
   
-  ttsAvailable = true;
-  return true;
+  // No TTS available
+  ttsAvailable = false;
+  const btn = document.getElementById("ttsMasterBtn");
+  if (btn) {
+    btn.title = "TTS ไม่รองรับ (ต้องใช้ server หรือ browser ที่รองรับ Web Speech)";
+    btn.style.opacity = "0.45";
+    btn.style.cursor = "not-allowed";
+  }
+  return false;
 }
 
 // ── Toggle player bar ──
@@ -792,9 +817,11 @@ async function _ttsFetchAudio(text, cfg) {
   if (tts.blobCache[key]) return tts.blobCache[key];
   if (tts.prefetchQueue[key]) return tts.prefetchQueue[key];
 
-  // Use Web Speech API if server TTS not available
-  if (useWebSpeechAPI) {
-    return new Promise((resolve, reject) => {
+  let promise;
+
+  // Use Web Speech API if configured
+  if (ttsEngine === "webspeech" || useWebSpeechAPI) {
+    promise = new Promise((resolve, reject) => {
       const utterance = new SpeechSynthesisUtterance(text);
       
       // Set language to Thai
@@ -826,36 +853,62 @@ async function _ttsFetchAudio(text, cfg) {
       resolve(dummyUrl);
     });
   }
-
-  // Original server TTS implementation
-  tts.abortCtrl = new AbortController();
-  const promise = fetch("/api/tts/synthesize", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      text,
-      voice: cfg.voice,
-      rate_pct: cfg.rate_pct ?? 0,
-      pitch_hz: cfg.pitch_hz ?? 0,
-    }),
-    signal: tts.abortCtrl.signal,
-  }).then(async res => {
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      if (err.error === "edge_tts_not_installed") {
-        ttsStop();
-        alert("กรุณาติดตั้ง edge-tts:\npip install edge-tts");
+  // Use ElevenLabs API
+  else if (ttsEngine === "elevenlabs") {
+    tts.abortCtrl = new AbortController();
+    promise = fetch("/api/tts/elevenlabs/synthesize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        voice_id: cfg.voice_id || "default",
+      }),
+      signal: tts.abortCtrl.signal,
+    }).then(async res => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "ElevenLabs TTS failed");
       }
-      throw new Error(err.error || "TTS failed");
-    }
-    const used = res.headers.get("X-Chars-Used");
-    if (used) _ttsUpdateUsageLabel(parseInt(used));
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    tts.blobCache[key] = url;
-    delete tts.prefetchQueue[key];
-    return url;
-  });
+      const used = res.headers.get("X-Chars-Used");
+      if (used) _ttsUpdateUsageLabel(parseInt(used));
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      tts.blobCache[key] = url;
+      delete tts.prefetchQueue[key];
+      return url;
+    });
+  }
+  // Use edge-tts (default)
+  else {
+    tts.abortCtrl = new AbortController();
+    promise = fetch("/api/tts/synthesize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        voice: cfg.voice,
+        rate_pct: cfg.rate_pct ?? 0,
+        pitch_hz: cfg.pitch_hz ?? 0,
+      }),
+      signal: tts.abortCtrl.signal,
+    }).then(async res => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        if (err.error === "edge_tts_not_installed") {
+          ttsStop();
+          alert("กรุณาติดตั้ง edge-tts:\npip install edge-tts");
+        }
+        throw new Error(err.error || "TTS failed");
+      }
+      const used = res.headers.get("X-Chars-Used");
+      if (used) _ttsUpdateUsageLabel(parseInt(used));
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      tts.blobCache[key] = url;
+      delete tts.prefetchQueue[key];
+      return url;
+    });
+  }
 
   tts.prefetchQueue[key] = promise;
   return promise;

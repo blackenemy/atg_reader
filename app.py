@@ -465,6 +465,88 @@ def api_tts_synthesize():
                              "X-Chars-Used": str(usage["chars_used"])})
 
 
+# ════════════════════════════════════════════════════════
+# ElevenLabs TTS (Premium AI voices)
+# ════════════════════════════════════════════════════════
+
+@app.route("/api/tts/elevenlabs/synthesize", methods=["POST"])
+def api_tts_elevenlabs():
+    """Synthesize via ElevenLabs API. Premium AI voices with caching."""
+    import requests
+    
+    api_key = os.getenv("ELEVENLABS_API_KEY")
+    if not api_key:
+        return jsonify({"error": "ELEVENLABS_API_KEY not set"}), 503
+    
+    data = request.get_json(force=True)
+    text = data.get("text", "").strip()
+    voice_id = data.get("voice_id", os.getenv("ELEVENLABS_VOICE_ID", "EXAVITQu4vLQfsLW1N7F"))
+    
+    if not text:
+        return jsonify({"error": "text is required"}), 400
+    
+    # ── Cache lookup ──
+    cache_key = hashlib.sha256(f"{text}|elevenlabs|{voice_id}".encode()).hexdigest()
+    cache_path = os.path.join(TTS_AUDIO_DIR, f"el_{cache_key}.mp3")
+    
+    if os.path.exists(cache_path):
+        with open(cache_path, "rb") as f:
+            audio = f.read()
+        return Response(audio, mimetype="audio/mpeg",
+                        headers={"X-Cache": "HIT", "X-Engine": "elevenlabs"})
+    
+    # ── Call ElevenLabs API ──
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+    headers = {
+        "xi-api-key": api_key,
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "text": text,
+        "model_id": "eleven_monolingual_v1",  # Fast model
+        "voice_settings": {
+            "stability": 0.5,
+            "similarity_boost": 0.75,
+        }
+    }
+    
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
+        response.raise_for_status()
+        audio = response.content
+    except requests.exceptions.RequestException as e:
+        error_msg = str(e)
+        status_code = 503
+        try:
+            if hasattr(e.response, 'status_code'):
+                if e.response.status_code == 401:
+                    error_msg = "Invalid ElevenLabs API key"
+                    status_code = 401
+                elif e.response.status_code == 429:
+                    error_msg = "ElevenLabs rate limit exceeded"
+                    status_code = 429
+        except:
+            pass
+        return jsonify({"error": error_msg}), status_code
+    
+    if not audio:
+        return jsonify({"error": "empty_audio"}), 500
+    
+    # ── Save to cache ──
+    with open(cache_path, "wb") as f:
+        f.write(audio)
+    
+    # ── Update char stats ──
+    usage = _tts_get_usage()
+    usage["chars_used"] += len(text)
+    _tts_save_usage(usage)
+    
+    return Response(audio, mimetype="audio/mpeg",
+                    headers={"X-Cache": "MISS",
+                             "X-Engine": "elevenlabs",
+                             "X-Chars-Used": str(usage["chars_used"])})
+
+
 if __name__ == "__main__":
     load_cache()
 
