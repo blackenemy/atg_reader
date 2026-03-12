@@ -11,6 +11,13 @@ import threading
 from datetime import datetime
 from flask import Flask, jsonify, render_template, Response, request
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 app = Flask(__name__)
 
 # Support both local development and Netlify deployment
@@ -480,7 +487,7 @@ def api_tts_elevenlabs():
     
     data = request.get_json(force=True)
     text = data.get("text", "").strip()
-    voice_id = data.get("voice_id", os.getenv("ELEVENLABS_VOICE_ID", "EXAVITQu4vLQfsLW1N7F"))
+    voice_id = data.get("voice_id", os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM"))
     
     if not text:
         return jsonify({"error": "text is required"}), 400
@@ -503,7 +510,7 @@ def api_tts_elevenlabs():
     }
     payload = {
         "text": text,
-        "model_id": "eleven_monolingual_v1",  # Fast model
+        "model_id": "eleven_turbo_v2_5",  # Latest free model
         "voice_settings": {
             "stability": 0.5,
             "similarity_boost": 0.75,
