@@ -17,8 +17,8 @@
 # status = 200 → transparent rewrite (browser URL stays the same)
 
 [[redirects]]
-  from   = "/api/chapter/:num"
-  to     = "/chapters/:num.json"
+  from   = "/api/chapter/*"
+  to     = "/chapters/:splat.json"
   status = 200
 
 [[redirects]]
