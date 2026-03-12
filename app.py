@@ -13,7 +13,12 @@ from flask import Flask, jsonify, render_template, Response, request
 
 app = Flask(__name__)
 
-PDF_PATH = "/Users/prot/Documents/03_Reference/Books/Against the Gods อสูรพลิกฟ้า1-1900.pdf"
+# Support both local development and Netlify deployment
+PDF_PATH = os.getenv(
+    "PDF_PATH",
+    "/Users/prot/Documents/03_Reference/Books/Against the Gods อสูรพลิกฟ้า1-1900.pdf"
+)
+
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "cache")
 CACHE_FILE = os.path.join(CACHE_DIR, "index.json")
 BOOKMARK_FILE = os.path.join(CACHE_DIR, "bookmark.json")
@@ -21,8 +26,10 @@ CHAPTER_CACHE_DIR = os.path.join(CACHE_DIR, "chapters")
 TTS_AUDIO_DIR  = os.path.join(CACHE_DIR, "audio")
 TTS_USAGE_FILE = os.path.join(CACHE_DIR, "tts_usage.json")
 
-os.makedirs(CHAPTER_CACHE_DIR, exist_ok=True)
-os.makedirs(TTS_AUDIO_DIR, exist_ok=True)
+# Only create cache dirs if PDF exists (for safety on Netlify)
+if os.path.exists(PDF_PATH):
+    os.makedirs(CHAPTER_CACHE_DIR, exist_ok=True)
+    os.makedirs(TTS_AUDIO_DIR, exist_ok=True)
 
 
 # Shared PDF reader
