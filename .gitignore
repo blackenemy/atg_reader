@@ -10,8 +10,13 @@ env/
 
 # Cache
 cache/
-*.mp3
+
+# Ignore JSON in cache and temp, but NOT the public API files
 *.json
+!info.json
+!index-data.json
+!api-unavailable.json
+!chapters/
 
 # Mac
 .DS_Store
